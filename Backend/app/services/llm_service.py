@@ -49,8 +49,17 @@ Question:
 
 Answer:"""
 
+TITLE_PROMPT_TEMPLATE = """You are a helpful assistant. Generate a short, concise, and descriptive title (3 to 5 words maximum) for a chat conversation that begins with the following user message. Do not use quotes, punctuation, or preamble.
+
+User Message:
+{message}
+
+Title:"""
+
+
 rag_prompt = ChatPromptTemplate.from_template(RAG_PROMPT_TEMPLATE)
 general_prompt = ChatPromptTemplate.from_template(GENERAL_PROMPT_TEMPLATE)
+title_prompt = ChatPromptTemplate.from_template(TITLE_PROMPT_TEMPLATE)
 
 def format_docs(docs) -> str:
   return "\n\n".join(doc.page_content for doc in docs)
@@ -77,3 +86,12 @@ async def generate_rag_response(question: str, session_id: str) -> str:
     logger.error(f"Error during RAG response generation: {e}")
     raise e
     
+async def generate_chat_title(first_message: str) -> str:
+  try:
+    title_chain = title_prompt | llm | StrOutputParser()
+    raw_title = await title_chain.ainvoke({"message": first_message})
+    return raw_title.strip().replace('"', "")
+  except Exception as e:
+    logger.error(f"Error generating chat title: {e}")
+    words = first_message.strip().split()
+    return " ".join(words[:4]) if words else "New Chat"
