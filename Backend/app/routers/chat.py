@@ -1,15 +1,17 @@
 import logging
+import json
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from app.schemas.chat_schema import ChatRequest, ChatResponse
-from app.services.llm_service import generate_rag_response, generate_chat_title
+from app.services.llm_service import generate_chat_title, stream_rag_response
 from app.core.database import get_database
+from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
-@router.post('', response_model=ChatResponse, status_code=200)
+@router.post('', status_code=200)
 async def chat_endpoint(payload: ChatRequest):
   db = get_database()
   now = datetime.now(timezone.utc)
@@ -30,27 +32,44 @@ async def chat_endpoint(payload: ChatRequest):
         {"session_id": payload.session_id},
         {"$set": {"updated_at": now}}
       )
-    
-    answer = await generate_rag_response(question=payload.message, session_id=payload.session_id)
-    
-    await db.chat_history.insert_many([
-      {
-        "session_id": payload.session_id,
-        "role": "user",
-        "content": payload.message,
-        "timestamp": now,
+        
+    async def response_stream():
+      collected_token = []
+      
+      try:
+        async for token in stream_rag_response(payload.message, payload.session_id):
+          collected_token.append(token)
+          yield f"data: {json.dumps({'token': token})}\n\n"
+          
+        fully_bot_response = "".join(collected_token)
+        await db.chat_history.insert_many([
+          {
+            "session_id": payload.session_id,
+            "role": "user",
+            "content": payload.message,
+            "timestamp": now,
+          },
+          {
+            "session_id": payload.session_id,
+            "role": "assistant",
+            "content": fully_bot_response,
+            "timestamp": datetime.now(timezone.utc),
+          }
+        ])
+        
+        yield "data: [DONE]\n\n"
+      except Exception as stream_err:
+        logger.error(f"Error during stream output: {stream_err}")
+        yield f"data: {json.dumps({'error': 'An error occurred during generation.'})}\n\n"
+        
+    return StreamingResponse(
+      response_stream(),
+      media_type="text/event-stream",
+      headers={
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
       },
-      {
-        "session_id": payload.session_id,
-        "role": "assistant",
-        "content": answer,
-        "timestamp": datetime.now(timezone.utc),
-      }
-    ])
-    
-    return ChatResponse(
-      session_id=payload.session_id,
-      response=answer
     )
   
   except Exception as e:

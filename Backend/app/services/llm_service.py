@@ -10,6 +10,7 @@ from langchain_core.runnables import RunnablePassthrough
 from app.core.config import settings
 from app.services.vector_service import get_retriever
 from app.core.database import get_database
+from typing import AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ async def get_recent_chat_history(session_id: str, limit: int = 6) -> List[BaseM
       
   return history
 
-async def generate_rag_response(question: str, session_id: str) -> str:
+async def stream_rag_response(question: str, session_id: str) -> AsyncGenerator[str, None]:
   retriever = get_retriever(session_id=session_id, k=4)
   
   retrieved_docs: List[Document] = await retriever.ainvoke(question)
@@ -92,15 +93,11 @@ async def generate_rag_response(question: str, session_id: str) -> str:
   else:
     logger.info(f"General Chat Mode: No documents found for session_id: {session_id}")
     chain = general_prompt | llm | StrOutputParser()
-    input_data = {"question": question, "chat_history": chat_history,}
-  
-  try:
-    response = await chain.ainvoke(input_data)
-    return response
-  except Exception as e:
-    logger.error(f"Error during RAG response generation: {e}")
-    raise e
+    input_data = {"question": question, "chat_history": chat_history}
     
+  async for chunk in chain.astream(input_data):
+    yield chunk
+
 async def generate_chat_title(first_message: str) -> str:
   try:
     title_chain = title_prompt | llm | StrOutputParser()
