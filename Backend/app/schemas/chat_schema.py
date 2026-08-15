@@ -3,10 +3,10 @@ from datetime import datetime
 from typing import List, Optional
 
 class ChatSessionCreate(BaseModel):
-  title: Optional[str] = Field(default="New Chat", max_length=10)
+  title: Optional[str] = Field(default="New Chat", max_length=100)
   
 class ChatSessionRename(BaseModel):
-  title: str = Field(..., min_length=1, max_length=10)
+  title: str = Field(..., min_length=1, max_length=100)
   
 class ChatSessionResponse(BaseModel):
   session_id: str
