@@ -1,4 +1,27 @@
 from pydantic import BaseModel, Field, HttpUrl
+from datetime import datetime
+from typing import List, Optional
+
+class ChatSessionCreate(BaseModel):
+  title: Optional[str] = Field(default="New Chat", max_length=10)
+  
+class ChatSessionRename(BaseModel):
+  title: str = Field(..., min_length=1, max_length=10)
+  
+class ChatSessionResponse(BaseModel):
+  session_id: str
+  title: str
+  created_at: datetime
+  updated_at: datetime
+  
+class MessageItem(BaseModel):
+  role: str
+  content: str
+  timestamp: datetime
+  
+class ChatHistoryResponse(BaseModel):
+  session_id: str
+  messages: List[MessageItem]
 
 class ChatRequest(BaseModel):
   session_id: str = Field(

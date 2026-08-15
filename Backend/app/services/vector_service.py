@@ -47,3 +47,12 @@ def get_retriever(session_id: str, k: int = 4):
       "pre_filter": {"session_id": {"$eq": session_id}}
     }
   )
+  
+async def delete_session_vectors(session_id: str) -> int:
+  try:
+    result = await collection.delete_many({"session_id": session_id})
+    logger.info(f"Deleted {result.deleted_count} vector chunks for session {session_id}")
+    return result.deleted_count
+  except Exception as e:
+    logger.error(f"Error deleting vectors for session {session_id}: {e}")
+    raise e
