@@ -59,7 +59,7 @@ async def get_session_history(session_id: str):
     raise HTTPException(status_code=404, detail="Session not found")
   
   messages = []
-  cursor = db.chat_histories.find({"session_id": session_id}).sort("timestamp", -1)
+  cursor = db.chat_history.find({"session_id": session_id}).sort("timestamp", -1)
   async for doc in cursor:
     messages.append(
       MessageItem(
@@ -100,11 +100,11 @@ async def delete_session(session_id: str):
   if res.deleted_count == 0:
     raise HTTPException(status_code=404, detail="Session not found")
 
-  await db.chat_histories.delete_many({"session_id": session_id})
+  await db.chat_history.delete_many({"session_id": session_id})
 
   await db.documents.delete_many({"session_id": session_id})
 
-  delete_session_vectors(session_id)
+  await delete_session_vectors(session_id)
 
   return None
   

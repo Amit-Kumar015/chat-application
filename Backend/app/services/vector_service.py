@@ -50,7 +50,7 @@ def get_retriever(session_id: str, k: int = 4):
   
 async def delete_session_vectors(session_id: str) -> int:
   try:
-    result = await collection.delete_many({"session_id": session_id})
+    result = collection.delete_many({"session_id": session_id})
     logger.info(f"Deleted {result.deleted_count} vector chunks for session {session_id}")
     return result.deleted_count
   except Exception as e:

@@ -30,22 +30,23 @@ async def chat_endpoint(payload: ChatRequest):
         {"session_id": payload.session_id},
         {"$set": {"updated_at": now}}
       )
-      
-    await db.chat_histories.insert_one({
-      "session_id": payload.session_id,
-      "role": "user",
-      "content": payload.message,
-      "timestamp": now,
-    })
     
     answer = await generate_rag_response(question=payload.message, session_id=payload.session_id)
     
-    await db.chat_histories.insert_one({
-      "session_id": payload.session_id,
-      "role": "assistant",
-      "content": answer,
-      "timestamp": datetime.now(timezone.utc),
-    })
+    await db.chat_history.insert_many([
+      {
+        "session_id": payload.session_id,
+        "role": "user",
+        "content": payload.message,
+        "timestamp": now,
+      },
+      {
+        "session_id": payload.session_id,
+        "role": "assistant",
+        "content": answer,
+        "timestamp": datetime.now(timezone.utc),
+      }
+    ])
     
     return ChatResponse(
       session_id=payload.session_id,

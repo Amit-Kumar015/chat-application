@@ -1,13 +1,15 @@
 import logging
 from typing import List
 from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from app.core.config import settings
 from app.services.vector_service import get_retriever
+from app.core.database import get_database
 
 logger = logging.getLogger(__name__)
 
@@ -30,24 +32,17 @@ else:
   llm = primary_llm
   logger.info("LLM service configured with Gemini (Primary).")
   
-RAG_PROMPT_TEMPLATE = """You are an intelligent AI assistant. Use the provided retrieved context to answer the user's question accurately.
+RAG_PROMPT_TEMPLATE = [
+  ("system", "You are an intelligent AI assistant. Answer the user's question using the provided context and prior conversation history. If the context does not contain enough information, state that you do not have enough information from the uploaded documents.\n\nContext:\n{context}"),
+  MessagesPlaceholder(variable_name="chat_history"),
+  ("human", "{question}"),
+]
 
-If you don't know the answer or if the context doesn't contain enough information, simply state that you don't have enough information from the uploaded documents. Do not make up facts.
-
-Context:
-{context}
-
-Question:
-{question}
-
-Answer:"""
-
-GENERAL_PROMPT_TEMPLATE = """You are a helpful and intelligent AI assistant. Answer the user's question clearly and accurately.
-
-Question:
-{question}
-
-Answer:"""
+GENERAL_PROMPT_TEMPLATE = [
+  ("system", "You are a helpful and intelligent AI assistant. Answer the user's questions clearly and accurately using the conversation history when relevant."),
+  MessagesPlaceholder(variable_name="chat_history"),
+  ("human", "{question}"),
+]
 
 TITLE_PROMPT_TEMPLATE = """You are a helpful assistant. Generate a short, concise, and descriptive title (3 to 5 words maximum) for a chat conversation that begins with the following user message. Do not use quotes, punctuation, or preamble.
 
@@ -57,27 +52,47 @@ User Message:
 Title:"""
 
 
-rag_prompt = ChatPromptTemplate.from_template(RAG_PROMPT_TEMPLATE)
-general_prompt = ChatPromptTemplate.from_template(GENERAL_PROMPT_TEMPLATE)
+rag_prompt = ChatPromptTemplate.from_messages(RAG_PROMPT_TEMPLATE)
+general_prompt = ChatPromptTemplate.from_messages(GENERAL_PROMPT_TEMPLATE)
 title_prompt = ChatPromptTemplate.from_template(TITLE_PROMPT_TEMPLATE)
 
 def format_docs(docs) -> str:
   return "\n\n".join(doc.page_content for doc in docs)
 
+async def get_recent_chat_history(session_id: str, limit: int = 6) -> List[BaseMessage]:
+  db = get_database()
+  cursor = db.chat_history.find({"session_id": session_id}).sort("timestamp", -1).limit(limit)
+  
+  docs = []
+  async for item in cursor:
+    docs.append(item)
+    
+  docs.reverse()
+  
+  history: List[BaseMessage] = []
+  for item in docs:
+    if item.get("role") == "user":
+      history.append(HumanMessage(content=item.get("content", "")))
+    elif item.get("role") == "assistant":
+      history.append(AIMessage(content=item.get("content", "")))
+      
+  return history
+
 async def generate_rag_response(question: str, session_id: str) -> str:
   retriever = get_retriever(session_id=session_id, k=4)
   
   retrieved_docs: List[Document] = await retriever.ainvoke(question)
+  chat_history: List[BaseMessage] = await get_recent_chat_history(session_id=session_id, limit=6)
   
   if retrieved_docs:
     logger.info(f"RAG Mode: Found {len(retrieved_docs)} chunks for session_id: {session_id}")
     context_text = format_docs(retrieved_docs)
     chain = rag_prompt | llm | StrOutputParser()
-    input_data = {"context": context_text, "question": question}
+    input_data = {"context": context_text, "chat_history": chat_history, "question": question}
   else:
     logger.info(f"General Chat Mode: No documents found for session_id: {session_id}")
     chain = general_prompt | llm | StrOutputParser()
-    input_data = {"question": question}
+    input_data = {"question": question, "chat_history": chat_history,}
   
   try:
     response = await chain.ainvoke(input_data)
