@@ -24,7 +24,7 @@ if settings.GROQ_API_KEY:
     temperature=0.3
   )
   
-  llm = primary_llm.with_fallback([fallback_llm])
+  llm = primary_llm.with_fallbacks([fallback_llm])
   logger.info("LLM service configured with Gemini (Primary) and Groq (Fallback).")
 else:
   llm = primary_llm
@@ -52,37 +52,26 @@ Answer:"""
 rag_prompt = ChatPromptTemplate.from_template(RAG_PROMPT_TEMPLATE)
 general_prompt = ChatPromptTemplate.from_template(GENERAL_PROMPT_TEMPLATE)
 
-def formate_docs(docs) -> str:
+def format_docs(docs) -> str:
   return "\n\n".join(doc.page_content for doc in docs)
 
 async def generate_rag_response(question: str, session_id: str) -> str:
   retriever = get_retriever(session_id=session_id, k=4)
   
-  retrieved_docs: List[Document] = retriever.ainvoke(question)
+  retrieved_docs: List[Document] = await retriever.ainvoke(question)
   
   if retrieved_docs:
     logger.info(f"RAG Mode: Found {len(retrieved_docs)} chunks for session_id: {session_id}")
-    context_text = formate_docs(retrieved_docs)
-    chain = (
-      {
-        "context": context_text,
-        "question": RunnablePassthrough()
-      }
-      | rag_prompt
-      | llm
-      | StrOutputParser()
-    )
+    context_text = format_docs(retrieved_docs)
+    chain = rag_prompt | llm | StrOutputParser()
+    input_data = {"context": context_text, "question": question}
   else:
     logger.info(f"General Chat Mode: No documents found for session_id: {session_id}")
-    chain = (
-      {"question": RunnablePassthrough}
-      | general_prompt
-      | llm
-      | StrOutputParser()
-    )
+    chain = general_prompt | llm | StrOutputParser()
+    input_data = {"question": question}
   
   try:
-    response = await chain.ainvoke(question)
+    response = await chain.ainvoke(input_data)
     return response
   except Exception as e:
     logger.error(f"Error during RAG response generation: {e}")

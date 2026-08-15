@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import connect_to_mongo, close_mongo_connection, get_database
 from app.core.config import settings
+from app.routers import chat, documents
 
 logging.basicConfig(
   level=logging.INFO,
@@ -41,4 +42,7 @@ async def health_check():
     "environment": settings.ENVIRONMENT,
     "app_name": settings.PROJECT_NAME
   }
+  
+app.include_router(chat.router)
+app.include_router(documents.router)
   

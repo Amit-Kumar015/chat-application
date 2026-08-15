@@ -9,8 +9,9 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 embeddings = GoogleGenerativeAIEmbeddings(
-  model="models/text-embedding-004",
-  google_api_key=settings.GOOGLE_API_KEY.get_secret_value()
+  model="models/gemini-embedding-001",
+  google_api_key=settings.GOOGLE_API_KEY.get_secret_value(),
+  output_dimensionality=768,
 )
 
 mongo_client = MongoClient(settings.MONGO_URI)
@@ -18,7 +19,7 @@ collection = mongo_client[settings.MONGO_DB_NAME]["vector_store"]
 
 vector_store = MongoDBAtlasVectorSearch(
   collection=collection,
-  embeddings=embeddings,
+  embedding=embeddings,
   index_name=settings.MONGO_VECTOR_INDEX_NAME,
   relevance_score_fn="cosine"
 )
