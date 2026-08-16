@@ -59,7 +59,7 @@ async def get_session_history(session_id: str):
     raise HTTPException(status_code=404, detail="Session not found")
   
   messages = []
-  cursor = db.chat_history.find({"session_id": session_id}).sort("timestamp", -1)
+  cursor = db.chat_history.find({"session_id": session_id}).sort("timestamp")
   async for doc in cursor:
     messages.append(
       MessageItem(
