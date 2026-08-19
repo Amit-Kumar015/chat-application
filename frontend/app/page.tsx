@@ -7,11 +7,12 @@ import {
   Paperclip,
   PanelLeft,
   Bot,
-  CheckCircle2,
   Loader2,
   Plus,
   Globe,
   FileText,
+  Mic,
+  Square,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -29,7 +30,13 @@ export default function ChatPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedDocument[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -190,6 +197,72 @@ export default function ChatPage() {
     );
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+        if (audioBlob.size === 0) return;
+
+        setIsTranscribing(true);
+        try {
+          const transcribedText = await api.transcribeVoice(audioBlob);
+          if (transcribedText) {
+            const textStr = String(transcribedText);
+            setInput((prev) =>
+              prev ? `${prev} ${textStr}` : textStr,
+            );
+          }
+        } catch (err) {
+          console.error("Transcription error:", err);
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      mediaRecorder.start(200);
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access denied or error:", err);
+      alert("Please allow microphone permissions to use voice input.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -294,56 +367,102 @@ export default function ChatPage() {
           )}
 
           <div className="relative flex items-end bg-[#2f2f2f] border border-[#333333] rounded-2xl p-1.5 shadow-lg focus-within:border-[#555555] transition">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".pdf,.docx,.txt,.mp3,.mp4,.wav,.m4a,.webm,.ogg"
-              className="hidden"
-            />
+            {!isRecording && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen((prev) => !prev)}
+                  className="p-1.5 text-[#ECECEC] hover:bg-[#383838] rounded-full transition ml-1 cursor-pointer"
+                  title="Add attachments"
+                >
+                  {isUploading ? (
+                    <Loader2
+                      size={18}
+                      className="animate-spin text-[#10a37f]"
+                    />
+                  ) : (
+                    <Plus size={18} />
+                  )}
+                </button>
 
-            <AttachMenu
-              isOpen={isMenuOpen}
-              onClose={() => setIsMenuOpen(false)}
-              onSelectFile={handleSelectFile}
-              onSelectUrl={handleSelectUrl}
-            />
+                <AttachMenu
+                  isOpen={isMenuOpen}
+                  onClose={() => setIsMenuOpen(false)}
+                  onSelectFile={handleSelectFile}
+                  onSelectUrl={handleSelectUrl}
+                />
+              </>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="p-1.5 text-[#ECECEC] hover:bg-[#383838] rounded-full transition ml-1 cursor-pointer"
-              title="Add attachments"
-            >
-              {isUploading ? (
-                <Loader2 size={18} className="animate-spin text-[#10a37f]" />
+            {isRecording ? (
+              <div className="flex-1 flex items-center justify-between px-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-xs text-[#ECECEC] font-medium">
+                    Recording voice...
+                  </span>
+                  <span className="text-xs text-[#8E8E8E] font-mono">
+                    {formatDuration(recordingTime)}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 rounded-full text-xs transition cursor-pointer"
+                >
+                  <Square size={12} className="fill-current" />
+                  <span>Stop & Transcribe</span>
+                </button>
+              </div>
+            ) : (
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  isTranscribing
+                    ? "Transcribing speech with Whisper..."
+                    : "Message ChatGPT..."
+                }
+                disabled={isTranscribing}
+                className="w-full bg-transparent text-sm text-[#ECECEC] placeholder-[#A0A0A0] focus:outline-none resize-none px-3 py-1.5 max-h-30"
+              />
+            )}
+
+            <div className="flex items-center gap-1 mr-1 shrink-0">
+              {isTranscribing ? (
+                <div className="p-1.5">
+                  <Loader2 size={16} className="animate-spin text-[#10a37f]" />
+                </div>
+              ) : !input.trim() && !isRecording ? (
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  className="p-1.5 text-[#ECECEC] hover:bg-[#383838] rounded-full transition cursor-pointer"
+                  title="Voice input"
+                >
+                  <Mic size={18} />
+                </button>
               ) : (
-                <Plus size={18} />
+                !isRecording && (
+                  <button
+                    type="submit"
+                    onClick={handleSendMessage}
+                    disabled={!input.trim() || isStreaming}
+                    className="h-8 w-8 rounded-full bg-blue-600 text-[#212121] hover:opacity-90 disabled:opacity-70 flex items-center justify-center transition cursor-pointer mr-1"
+                  >
+                    <ArrowUp size={16} />
+                  </button>
+                )
               )}
-            </button>
-
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask Anything"
-              className="w-full bg-transparent text-sm text-[#ECECEC] placeholder-[#A0A0A0] focus:outline-none resize-none px-3 py-1.5 max-h-30"
-            />
-
-            <button
-              type="submit"
-              onClick={handleSendMessage}
-              disabled={!input.trim() || isStreaming}
-              className="h-8 w-8 rounded-full bg-blue-600 text-[#212121] hover:opacity-90 disabled:opacity-70 flex items-center justify-center transition shrink-0 mr-1"
-            >
-              <ArrowUp size={16} />
-            </button>
+            </div>
           </div>
           <p className="text-[10px] text-center text-[#A0A0A0] mt-2">
             OpenChat can make mistakes. Verify important info.

@@ -136,4 +136,21 @@ export const api = {
       onError(err.message || "Streaming error occurred");
     }
   },
+
+  async transcribeVoice(audioBlob: Blob): Promise<String>{
+    const formData = new FormData()
+    formData.append("file", audioBlob, "voice_input.webm")
+
+    const res = await fetch(`${API_BASE}/audio/transcribe`, {
+      method: "POST",
+      body: formData
+    })
+
+    if(!res.ok){
+      throw new Error("Failed to transcribe audio.");
+    }
+
+    const data = await res.json()
+    return data.text;
+  }
 };
