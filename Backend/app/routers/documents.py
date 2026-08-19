@@ -1,14 +1,19 @@
 import logging
+import os
 from datetime import datetime, timezone 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schemas.chat_schema import URLIngestRequest, IngestResponse
-from app.services.document_service import parse_uploaded_file, parse_url
+from app.services.document_service import parse_uploaded_file, parse_url, transcribe_media
 from app.services.vector_service import add_documents_to_vectorstore
 from app.core.database import get_database
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/documents', tags=["Document Ingestion"])
+
+MEDIA_EXTENSIONS = {
+  ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg", ".flac"
+}
 
 @router.post("/upload", response_model=IngestResponse, status_code=201)
 async def upload_document(session_id: str = Form(...), file: UploadFile = File(...)):
@@ -17,17 +22,22 @@ async def upload_document(session_id: str = Form(...), file: UploadFile = File(.
   
   db = get_database()
   now = datetime.now(timezone.utc)
+  ext = os.path.splitext(file.filename)[1].lower()
   
   try:
-    chunks = await parse_uploaded_file(file)
+    if ext in MEDIA_EXTENSIONS:
+      chunks = await transcribe_media(file=file)
+    else:
+      chunks = await parse_uploaded_file(file)
 
     chunks_count = await add_documents_to_vectorstore(chunks, session_id=session_id)
   
+    mime_type = file.content_type or f"file/{ext.lstrip('.')}"
     await db.documents.insert_one({
       "session_id": session_id,
       "name": file.filename,
       "chunks_count": chunks_count,
-      "type": file.content_type,
+      "type": mime_type,
       "created_at": now
     })
     

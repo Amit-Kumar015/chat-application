@@ -7,6 +7,8 @@ from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from docx import Document as DocxReader
+from app.core.config import settings
+from groq import AsyncGroq
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,12 @@ text_splitter = RecursiveCharacterTextSplitter(
   chunk_overlap=200,
   length_function=len
 )
+
+groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY.get_secret_value())
+
+SUPPORTED_MEDIA_EXTENSIONS = {
+  ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg", ".flac"
+}
 
 async def parse_uploaded_file(file: UploadFile) -> List[Document]:
   filename = file.filename or "uploaded_file"
@@ -74,3 +82,45 @@ async def parse_url(url: str) -> List[Document]:
   except Exception as e:
     logger.error(f"Error scraping URL {url}: {e}")
     raise HTTPException(status_code=500, detail=f"Failed to scrape URL: {str(e)}")
+  
+async def transcribe_media(file: UploadFile) -> List[Document]:
+  try:
+    content = await file.read()
+    
+    if(content.len == 0):
+      raise HTTPException(status_code=400, detail="Uploaded audio/video file is empty.")
+    
+    if len(content) > 25 * 1024 * 1024:
+      raise HTTPException(status_code=400, detail="File size exceeds Groq's 25MB limit. Please upload a smaller clip or compress the audio.")
+
+    logger.info(f"Starting Groq Whisper transcription for: {file.filename}")
+    
+    transcription = await groq_client.audio.transcriptions.create(
+      file=(file.filename, content),
+      model="whisper-large-v3-turbo",
+      response_format="verbose_json",
+      temperature=0.0,
+    )
+      
+    transcribed_text = transcription.text.strip()
+    
+    if not transcribed_text:
+      logger.warning(f"No audible speech detected in {file.filename}")
+      return []
+    
+    chunks = text_splitter.create_document(
+      texts=[transcribed_text],
+      metadata={"source": file.filename}
+    )
+    
+    logger.info(f"Successfully transcribed {file.filename}: {len(chunks)} chunks created.")
+    
+    return chunks
+  except HTTPException:
+    raise
+  except Exception as e:
+    logger.error(f"Error transcribing {file.filename}: {e}")
+    raise HTTPException(
+      status_code=500,
+      detail=f"Failed to transcribe media: {str(e)}",
+    )

@@ -26,8 +26,6 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isAttachOpen, setIsAttachOpen] = useState(false);
-  const [attachedSource, setAttachedSource] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedDocument[]>([]);
@@ -134,7 +132,7 @@ export default function ChatPage() {
     const newId = `session_${uuidv4().substring(0, 8)}`;
     setCurrentSessionId(newId);
     setMessages([]);
-    setAttachedSource(null);
+    setAttachedFiles([]);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -300,7 +298,7 @@ export default function ChatPage() {
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".pdf,.docx,.txt"
+              accept=".pdf,.docx,.txt,.mp3,.mp4,.wav,.m4a,.webm,.ogg"
               className="hidden"
             />
 

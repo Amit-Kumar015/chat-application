@@ -1,4 +1,3 @@
-// components/Sidebar.tsx
 "use client";
 
 import React, { useState } from "react";
