@@ -13,12 +13,14 @@ import {
   FileText,
   Mic,
   Square,
+  Headphones,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Sidebar from "@/components/Sidebar";
 import { api, Session, Message, AttachedDocument } from "@/lib/api";
 import AttachMenu from "@/components/AttachMenu";
+import VoiceModal from "@/components/VoiceModal";
 
 export default function ChatPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -33,6 +35,7 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -225,9 +228,7 @@ export default function ChatPage() {
           const transcribedText = await api.transcribeVoice(audioBlob);
           if (transcribedText) {
             const textStr = String(transcribedText);
-            setInput((prev) =>
-              prev ? `${prev} ${textStr}` : textStr,
-            );
+            setInput((prev) => (prev ? `${prev} ${textStr}` : textStr));
           }
         } catch (err) {
           console.error("Transcription error:", err);
@@ -442,14 +443,38 @@ export default function ChatPage() {
                   <Loader2 size={16} className="animate-spin text-[#10a37f]" />
                 </div>
               ) : !input.trim() && !isRecording ? (
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  className="p-1.5 text-[#ECECEC] hover:bg-[#383838] rounded-full transition cursor-pointer"
-                  title="Voice input"
-                >
-                  <Mic size={18} />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="p-1.5 text-[#ECECEC] hover:bg-[#383838] rounded-full transition cursor-pointer"
+                    title="Voice input"
+                  >
+                    <Mic size={18} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsVoiceModalOpen(true)}
+                    className="p-1.5 text-[#ECECEC] hover:bg-[#383838] rounded-full transition cursor-pointer"
+                    title="Voice Mode"
+                  >
+                    <Headphones size={18} />
+                  </button>
+
+                  <VoiceModal
+                    isOpen={isVoiceModalOpen}
+                    onClose={() => setIsVoiceModalOpen(false)}
+                    sessionId={currentSessionId || "default"}
+                    onTurnComplete={(userText, botText) => {
+                      setMessages((prev) => [
+                        ...prev,
+                        { role: "user", content: userText },
+                        { role: "assistant", content: botText },
+                      ]);
+                    }}
+                  />
+                </>
               ) : (
                 !isRecording && (
                   <button

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import connect_to_mongo, close_mongo_connection, get_database
 from app.core.config import settings
-from app.routers import chat, documents, sessions, audio
+from app.routers import chat, documents, sessions, audio, voice
 
 logging.basicConfig(
   level=logging.INFO,
@@ -47,3 +47,4 @@ app.include_router(chat.router)
 app.include_router(documents.router)
 app.include_router(sessions.router)
 app.include_router(audio.router)
+app.include_router(voice.router)

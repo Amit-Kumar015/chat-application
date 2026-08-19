@@ -152,5 +152,26 @@ export const api = {
 
     const data = await res.json()
     return data.text;
+  },
+
+  async sendVoiceChat(session_id: string, audioBlob: Blob): Promise<{
+    user_text: string;
+    assistant_text: string;
+    audio_base64: string;
+  }>{
+    const formData = new FormData()
+    formData.append("session_id", session_id)
+    formData.append("file", audioBlob, "voice_turn.webm")
+
+    const res = await fetch(`${API_BASE}/voice/chat`, {
+      method: "POST",
+      body: formData
+    })
+
+    if(!res.ok){
+      throw new Error("Voice pipeline failed.");
+    }
+
+    return res.json()
   }
 };
