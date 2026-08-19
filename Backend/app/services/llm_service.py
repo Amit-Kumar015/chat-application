@@ -15,7 +15,7 @@ from typing import AsyncGenerator
 logger = logging.getLogger(__name__)
 
 primary_llm = ChatGoogleGenerativeAI(
-  model="gemini-1.5-flash",
+  model="gemini-3.6-flash",
   api_key=settings.GOOGLE_API_KEY.get_secret_value(),
   temperature=0.3
 )
