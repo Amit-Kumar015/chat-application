@@ -123,6 +123,7 @@ export default function ChatPage() {
 
   const switchSession = async (sessionId: string) => {
     setCurrentSessionId(sessionId);
+    if(isVoiceModalOpen) setIsVoiceModalOpen(false)
     try {
       const [history, docs] = await Promise.all([
         api.getMessages(sessionId),

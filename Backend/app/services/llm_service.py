@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 primary_llm = ChatGoogleGenerativeAI(
   model="gemini-3.6-flash",
   api_key=settings.GOOGLE_API_KEY.get_secret_value(),
-  temperature=0.3
 )
 
 if settings.GROQ_API_KEY:

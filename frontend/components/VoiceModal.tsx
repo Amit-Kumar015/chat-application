@@ -21,33 +21,70 @@ export default function VoiceModal({
 }: VoiceModalProps) {
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const isClosingRef = useRef<boolean>(false);
+
   useEffect(() => {
     if (isOpen) {
+      isClosingRef.current = false;
       startListening();
     } else {
+      isClosingRef.current = true;
       stopEverything();
     }
-    return () => stopEverything();
+    return () => {
+      isClosingRef.current = true;
+      stopEverything();
+    };
   }, [isOpen]);
 
   const stopEverything = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
+      currentAudioRef.current.onended = null;
       currentAudioRef.current = null;
     }
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      if (mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
+    }
+
     setVoiceState("idle");
   };
 
+  const handleClose = () => {
+    isClosingRef.current = true;
+    stopEverything();
+    onClose();
+  };
+
   const startListening = async () => {
+    if (isClosingRef.current) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      if (isClosingRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      mediaStreamRef.current = stream;
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -56,10 +93,18 @@ export default function VoiceModal({
       };
 
       mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
+        if (isClosingRef.current) return;
+
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
+
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        if (blob.size > 0) {
+        if (blob.size > 1000) {
           processVoiceTurn(blob);
+        } else if (!isClosingRef.current) {
+          startListening();
         }
       };
 
@@ -67,21 +112,28 @@ export default function VoiceModal({
       setVoiceState("listening");
     } catch (err) {
       console.error("Microphone access error:", err);
-      alert("Microphone permission required.");
-      onClose();
+      handleClose();
     }
   };
 
   const stopListening = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
       mediaRecorderRef.current.stop();
     }
   };
 
   const processVoiceTurn = async (blob: Blob) => {
+    if (isClosingRef.current) return;
     setVoiceState("thinking");
+
     try {
       const result = await api.sendVoiceChat(sessionId, blob);
+
+      if (isClosingRef.current) return;
+
       onTurnComplete(result.user_text, result.assistant_text);
 
       const audioUrl = `data:audio/mp3;base64,${result.audio_base64}`;
@@ -89,14 +141,20 @@ export default function VoiceModal({
       currentAudioRef.current = audio;
 
       setVoiceState("speaking");
-      audio.play();
+      audio
+        .play()
+        .catch((err) => console.warn("Audio playback interrupted:", err));
 
       audio.onended = () => {
-        startListening();
+        if (!isClosingRef.current) {
+          startListening();
+        }
       };
     } catch (err) {
-      console.error(err);
-      setVoiceState("idle");
+      console.error("Voice turn error:", err);
+      if (!isClosingRef.current) {
+        startListening();
+      }
     }
   };
 
@@ -106,7 +164,7 @@ export default function VoiceModal({
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-[#171717]/95 backdrop-blur-md p-8 select-none">
       <div className="w-full flex justify-end">
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="p-2 text-[#A0A0A0] hover:text-white bg-[#212121] hover:bg-[#2a2a2a] rounded-full transition cursor-pointer"
         >
           <X size={20} />
@@ -120,10 +178,10 @@ export default function VoiceModal({
               voiceState === "listening"
                 ? "w-48 h-48 bg-[#10a37f]/20 animate-ping"
                 : voiceState === "thinking"
-                ? "w-48 h-48 bg-blue-500/20 animate-spin"
-                : voiceState === "speaking"
-                ? "w-56 h-56 bg-purple-500/20 animate-pulse"
-                : "w-40 h-40 bg-zinc-800"
+                  ? "w-48 h-48 bg-blue-500/20 animate-spin"
+                  : voiceState === "speaking"
+                    ? "w-56 h-56 bg-purple-500/20 animate-pulse"
+                    : "w-40 h-40 bg-zinc-800"
             }`}
           />
 
@@ -132,16 +190,22 @@ export default function VoiceModal({
               voiceState === "listening"
                 ? "bg-[#10a37f] scale-105 shadow-[#10a37f]/50"
                 : voiceState === "thinking"
-                ? "bg-gradient-to-tr from-cyan-500 to-blue-600 animate-pulse"
-                : voiceState === "speaking"
-                ? "bg-gradient-to-r from-purple-500 to-indigo-600 scale-110 shadow-purple-500/50"
-                : "bg-[#2f2f2f]"
+                  ? "bg-gradient-to-tr from-cyan-500 to-blue-600 animate-pulse"
+                  : voiceState === "speaking"
+                    ? "bg-gradient-to-r from-purple-500 to-indigo-600 scale-110 shadow-purple-500/50"
+                    : "bg-[#2f2f2f]"
             }`}
           >
             <div className="w-28 h-28 rounded-full bg-[#171717]/40 backdrop-blur-sm flex items-center justify-center text-white">
-              {voiceState === "listening" && <Mic size={32} className="animate-bounce" />}
-              {voiceState === "thinking" && <div className="w-6 h-6 rounded-full border-2 border-white border-t-transparent animate-spin" />}
-              {voiceState === "speaking" && <div className="w-8 h-8 rounded-full bg-white/80 animate-ping" />}
+              {voiceState === "listening" && (
+                <Mic size={32} className="animate-bounce" />
+              )}
+              {voiceState === "thinking" && (
+                <div className="w-6 h-6 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              )}
+              {voiceState === "speaking" && (
+                <div className="w-8 h-8 rounded-full bg-white/80 animate-ping" />
+              )}
             </div>
           </div>
         </div>
