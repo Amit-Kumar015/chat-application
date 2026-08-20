@@ -18,7 +18,6 @@ export default function AttachMenu({
 }: AttachMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {

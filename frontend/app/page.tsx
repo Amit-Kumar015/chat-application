@@ -115,9 +115,7 @@ export default function ChatPage() {
     try {
       const data = await api.getSessions();
       setSessions(data);
-      if (data.length > 0 && !currentSessionId) {
-        switchSession(data[0].session_id);
-      }
+      if(!currentSessionId) handleNewChat()
     } catch (e) {
       console.error(e);
     }
@@ -307,7 +305,7 @@ export default function ChatPage() {
 
         <div className="flex-1 overflow-y-auto px-4 md:px-0 py-6">
           <div className="max-w-3xl mx-auto space-y-6">
-            {messages.length === 0 ? (
+            {messages.length === 0  ? (
               <div className="h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
                 <div className="w-13 h-13 rounded-full bg-[#2f2f2f] border border-[#333333] flex items-center justify-center text-[#ECECEC]">
                   <Bot size={24} />
@@ -385,6 +383,14 @@ export default function ChatPage() {
                     <Plus size={18} />
                   )}
                 </button>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept=".pdf,.docx,.txt,.mp3,.mp4,.wav,.m4a,.webm,.ogg"
+                  className="hidden"
+                />
 
                 <AttachMenu
                   isOpen={isMenuOpen}
