@@ -76,7 +76,16 @@ export default function Sidebar({
   return (
     <aside className="fixed inset-y-0 left-0 z-50 w-full sm:w-[320px] md:relative md:z-30 md:w-[260px] h-screen bg-[#0a0a0a] border-r border-[#333333] flex flex-col flex-shrink-0 select-none font-sans">
       <div className="p-3.5 flex items-center justify-between gap-2">
-        <span className="font-semibold text-xl text-[#ECECEC]">OpenChat</span>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <img
+            src="/logo.svg"
+            alt="OpenChat logo"
+            className="h-8 w-8 shrink-0"
+          />
+          <span className="truncate font-semibold text-xl text-[#ECECEC]">
+            OpenChat
+          </span>
+        </div>
         <button
           type="button"
           onClick={onToggle}
