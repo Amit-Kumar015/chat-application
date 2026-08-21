@@ -198,7 +198,6 @@ export default function Sidebar({
             <span className="text-xs font-medium text-[#ECECEC] truncate">
               Workspace
             </span>
-            <span className="text-[10px] text-[#8E8E8E]">RAG Free Plan</span>
           </div>
         </div>
       </div>

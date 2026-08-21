@@ -290,7 +290,7 @@ export default function ChatPage() {
         }}
       />
 
-      <main className="flex-1 flex flex-col h-full min-w-0 bg-[#0a0a0a] relative">
+      <main className="flex-1 flex flex-col h-full min-w-0 bg-[#0a0a0a] relative overflow-hidden">
         <header className="h-12 flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center gap-2">
             {!sidebarOpen && (
@@ -366,7 +366,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          <div className="relative flex items-end bg-[#2f2f2f] border border-[#333333] rounded-2xl p-1.5 shadow-lg focus-within:border-[#555555] transition">
+          <div className="flex items-end bg-[#2f2f2f] border border-[#333333] rounded-2xl p-1.5 shadow-lg focus-within:border-[#555555] transition">
             {!isRecording && (
               <>
                 <button
@@ -437,7 +437,7 @@ export default function ChatPage() {
                 placeholder={
                   isTranscribing
                     ? "Transcribing speech with Whisper..."
-                    : "Message ChatGPT..."
+                    : "Message OpenChat..."
                 }
                 disabled={isTranscribing}
                 className="w-full bg-transparent text-sm text-[#ECECEC] placeholder-[#A0A0A0] focus:outline-none resize-none px-3 py-1.5 max-h-30"

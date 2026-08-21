@@ -161,7 +161,7 @@ export default function VoiceModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-[#171717]/95 backdrop-blur-md p-8 select-none">
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-between bg-[#171717] p-8 select-none">
       <div className="w-full flex justify-end">
         <button
           onClick={handleClose}
@@ -198,10 +198,7 @@ export default function VoiceModal({
           >
             <div className="w-28 h-28 rounded-full bg-[#171717]/40 backdrop-blur-sm flex items-center justify-center text-white">
               {voiceState === "listening" && (
-                <Mic size={32} className="animate-bounce" />
-              )}
-              {voiceState === "thinking" && (
-                <div className="w-6 h-6 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                <Mic size={32} />
               )}
               {voiceState === "speaking" && (
                 <div className="w-8 h-8 rounded-full bg-white/80 animate-ping" />
@@ -213,7 +210,7 @@ export default function VoiceModal({
         <span className="text-sm font-medium tracking-wide text-[#ECECEC] uppercase text-center">
           {voiceState === "listening" && "Listening..."}
           {voiceState === "thinking" && "Thinking..."}
-          {voiceState === "speaking" && "ChatGPT is speaking..."}
+          {voiceState === "speaking" && "Speaking..."}
           {voiceState === "idle" && "Tap to talk"}
         </span>
       </div>
