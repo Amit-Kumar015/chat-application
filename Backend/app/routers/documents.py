@@ -53,7 +53,7 @@ async def upload_document(session_id: str = Form(...), file: UploadFile = File(.
     return IngestResponse(
       session_id=session_id,
       status="success",
-      chunk_count=chunks_count,
+      chunks_count=chunks_count,
       source=file.filename
     )
   except Exception as e:

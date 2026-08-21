@@ -26,6 +26,7 @@ async def list_sessions(current_user: dict = Depends(get_current_user)):
   async for doc in cursor:
     sessions.append(
       ChatSessionResponse(
+        user_id=current_user["user_id"],
         session_id=doc["session_id"],
         title=doc["title"],
         created_at=doc["created_at"],
@@ -91,6 +92,7 @@ async def rename_session(session_id: str, payload: ChatSessionRename, current_us
     raise HTTPException(status_code=404, detail="Session not found")
 
   return ChatSessionResponse(
+    user_id=current_user["user_id"],
     session_id=result["session_id"],
     title=result["title"],
     created_at=result["created_at"],

@@ -87,7 +87,7 @@ async def transcribe_media(file: UploadFile) -> List[Document]:
   try:
     content = await file.read()
     
-    if(content.len == 0):
+    if len(content) == 0:
       raise HTTPException(status_code=400, detail="Uploaded audio/video file is empty.")
     
     if len(content) > 25 * 1024 * 1024:
@@ -108,9 +108,9 @@ async def transcribe_media(file: UploadFile) -> List[Document]:
       logger.warning(f"No audible speech detected in {file.filename}")
       return []
     
-    chunks = text_splitter.create_document(
+    chunks = text_splitter.create_documents(
       texts=[transcribed_text],
-      metadata={"source": file.filename}
+      metadatas=[{"source": file.filename}]
     )
     
     logger.info(f"Successfully transcribed {file.filename}: {len(chunks)} chunks created.")

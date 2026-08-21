@@ -22,7 +22,7 @@ async def signup(payload: UserSignupRequest):
   user_id = f"usr_{uuid.uuid4().hex[:12]}"
   user_doc = {
     "user_id": user_id,
-    "name": payload.name.strip(),
+    "username": payload.username.strip(),
     "email": email_clean,
     "password_hash": get_password_hash(payload.password),
     "created_at": now,
@@ -36,7 +36,7 @@ async def signup(payload: UserSignupRequest):
     access_token=token,
     user=UserResponse(
       user_id=user_id,
-      name=user_doc["name"],
+      username=user_doc["username"],
       email=user_doc["email"],
       created_at=now
     )
@@ -57,7 +57,7 @@ async def login(payload: UserLoginRequest):
     access_token=token,
     user=UserResponse(
       user_id=user["user_id"],
-      name=user["name"],
+      username=user["username"],
       email=user["email"],
       created_at=user["created_at"]
     )
@@ -67,7 +67,7 @@ async def login(payload: UserLoginRequest):
 async def get_me(current_user: dict = Depends(get_current_user)):
   return UserResponse(
     user_id=current_user["user_id"],
-    name=current_user["name"],
+    username=current_user["username"],
     email=current_user["email"],
     created_at=current_user["created_at"]
   )

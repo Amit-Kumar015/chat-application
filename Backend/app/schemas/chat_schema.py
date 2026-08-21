@@ -55,5 +55,5 @@ class URLIngestRequest(BaseModel):
 class IngestResponse(BaseModel):
   session_id: str
   status: str
-  chunk_count: int
+  chunks_count: int
   source: str
