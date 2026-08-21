@@ -59,9 +59,9 @@ title_prompt = ChatPromptTemplate.from_template(TITLE_PROMPT_TEMPLATE)
 def format_docs(docs) -> str:
   return "\n\n".join(doc.page_content for doc in docs)
 
-async def get_recent_chat_history(session_id: str, limit: int = 6) -> List[BaseMessage]:
+async def get_recent_chat_history(session_id: str, user_id: str, limit: int = 6) -> List[BaseMessage]:
   db = get_database()
-  cursor = db.chat_history.find({"session_id": session_id}).sort("timestamp", -1).limit(limit)
+  cursor = db.chat_history.find({"session_id": session_id, "user_id": user_id}).sort("timestamp", -1).limit(limit)
   
   docs = []
   async for item in cursor:
@@ -78,11 +78,11 @@ async def get_recent_chat_history(session_id: str, limit: int = 6) -> List[BaseM
       
   return history
 
-async def stream_rag_response(question: str, session_id: str) -> AsyncGenerator[str, None]:
-  retriever = get_retriever(session_id=session_id, k=4)
+async def stream_rag_response(question: str, session_id: str, user_id: str) -> AsyncGenerator[str, None]:
+  retriever = get_retriever(session_id=session_id, user_id=user_id, k=4)
   
   retrieved_docs: List[Document] = await retriever.ainvoke(question)
-  chat_history: List[BaseMessage] = await get_recent_chat_history(session_id=session_id, limit=6)
+  chat_history: List[BaseMessage] = await get_recent_chat_history(session_id=session_id, user_id=user_id, limit=6)
   
   if retrieved_docs:
     logger.info(f"RAG Mode: Found {len(retrieved_docs)} chunks for session_id: {session_id}")

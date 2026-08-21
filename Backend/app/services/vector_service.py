@@ -24,11 +24,12 @@ vector_store = MongoDBAtlasVectorSearch(
   relevance_score_fn="cosine"
 )
 
-async def add_documents_to_vectorstore(documents: List[Document], session_id: str) -> int:
+async def add_documents_to_vectorstore(documents: List[Document], session_id: str, user_id: str) -> int:
   if not documents:
     return 0
   
   for doc in documents:
+    doc.metadata["user_id"] = user_id
     doc.metadata["session_id"] = session_id
     
   try:
@@ -39,19 +40,24 @@ async def add_documents_to_vectorstore(documents: List[Document], session_id: st
     logger.error(f"Error adding documents to vector store: {e}")
     raise e
   
-def get_retriever(session_id: str, k: int = 4):
+def get_retriever(session_id: str, user_id: str, k: int = 4):
   return vector_store.as_retriever(
     search_type="similarity",
     search_kwargs={
       "k": k,
-      "pre_filter": {"session_id": {"$eq": session_id}}
+      "pre_filter": {
+        "$and": [
+          {"session_id": {"$eq": session_id}},
+          {"user_id": {"$eq": user_id}}  
+        ]
+      }
     }
   )
   
-async def delete_session_vectors(session_id: str) -> int:
+async def delete_session_vectors(session_id: str, user_id: str) -> int:
   try:
-    result = collection.delete_many({"session_id": session_id})
-    logger.info(f"Deleted {result.deleted_count} vector chunks for session {session_id}")
+    result = collection.delete_many({"session_id": session_id, "user_id": user_id})
+    logger.info(f"Deleted {result.deleted_count} vector chunks for user {user_id}, session {session_id}")
     return result.deleted_count
   except Exception as e:
     logger.error(f"Error deleting vectors for session {session_id}: {e}")

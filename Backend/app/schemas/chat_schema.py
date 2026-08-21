@@ -9,6 +9,7 @@ class ChatSessionRename(BaseModel):
   title: str = Field(..., min_length=1, max_length=100)
   
 class ChatSessionResponse(BaseModel):
+  user_id: str
   session_id: str
   title: str
   created_at: datetime

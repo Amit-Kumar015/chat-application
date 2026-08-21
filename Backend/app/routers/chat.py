@@ -1,27 +1,29 @@
 import logging
 import json
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.chat_schema import ChatRequest, ChatResponse
 from app.services.llm_service import generate_chat_title, stream_rag_response
 from app.core.database import get_database
 from fastapi.responses import StreamingResponse
+from app.core.security import get_current_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.post('', status_code=200)
-async def chat_endpoint(payload: ChatRequest):
+async def chat_endpoint(payload: ChatRequest, current_user: dict = Depends(get_current_user)):
   db = get_database()
   now = datetime.now(timezone.utc)
   
   try:
-    existing_session = await db.sessions.find_one({"session_id": payload.session_id})
+    existing_session = await db.sessions.find_one({"session_id": payload.session_id, "user_id": current_user["user_id"]})
     
     if not existing_session:
       title = await generate_chat_title(payload.message)
       await db.sessions.insert_one({
+        "user_id": current_user["user_id"],
         "session_id": payload.session_id,
         "title": title,
         "created_at": now,
@@ -29,7 +31,7 @@ async def chat_endpoint(payload: ChatRequest):
       })
     else:
       await db.sessions.update_one(
-        {"session_id": payload.session_id},
+        {"session_id": payload.session_id, "user_id": current_user["user_id"]},
         {"$set": {"updated_at": now}}
       )
         
@@ -37,19 +39,21 @@ async def chat_endpoint(payload: ChatRequest):
       collected_token = []
       
       try:
-        async for token in stream_rag_response(payload.message, payload.session_id):
+        async for token in stream_rag_response(payload.message, payload.session_id, current_user["user_id"]):
           collected_token.append(token)
           yield f"data: {json.dumps({'token': token})}\n\n"
           
         fully_bot_response = "".join(collected_token)
         await db.chat_history.insert_many([
           {
+            "user_id": current_user["user_id"],
             "session_id": payload.session_id,
             "role": "user",
             "content": payload.message,
             "timestamp": now,
           },
           {
+            "user_id": current_user["user_id"],
             "session_id": payload.session_id,
             "role": "assistant",
             "content": fully_bot_response,

@@ -1,11 +1,12 @@
 import logging
 import os
 from datetime import datetime, timezone 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from app.schemas.chat_schema import URLIngestRequest, IngestResponse
 from app.services.document_service import parse_uploaded_file, parse_url, transcribe_media
 from app.services.vector_service import add_documents_to_vectorstore
 from app.core.database import get_database
+from app.core.security import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +17,14 @@ MEDIA_EXTENSIONS = {
 }
 
 @router.post("/upload", response_model=IngestResponse, status_code=201)
-async def upload_document(session_id: str = Form(...), file: UploadFile = File(...)):
+async def upload_document(session_id: str = Form(...), file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
   if not file.filename:
     raise HTTPException(status_code=400, detail="No file uploaded")
   
   db = get_database()
   now = datetime.now(timezone.utc)
   ext = os.path.splitext(file.filename)[1].lower()
+  user_id = current_user["user_id"]
   
   try:
     if ext in MEDIA_EXTENSIONS:
@@ -30,10 +32,11 @@ async def upload_document(session_id: str = Form(...), file: UploadFile = File(.
     else:
       chunks = await parse_uploaded_file(file)
 
-    chunks_count = await add_documents_to_vectorstore(chunks, session_id=session_id)
+    chunks_count = await add_documents_to_vectorstore(chunks, session_id=session_id, user_id=user_id)
   
     mime_type = file.content_type or f"file/{ext.lstrip('.')}"
     await db.documents.insert_one({
+      "user_id": user_id,
       "session_id": session_id,
       "name": file.filename,
       "chunks_count": chunks_count,
@@ -42,7 +45,7 @@ async def upload_document(session_id: str = Form(...), file: UploadFile = File(.
     })
     
     await db.sessions.update_one(
-      {"session_id": session_id},
+      {"session_id": session_id, "user_id": user_id,},
       {"$set": {"updated_at": now}},
       upsert=True
     )
@@ -61,18 +64,20 @@ async def upload_document(session_id: str = Form(...), file: UploadFile = File(.
     )
   
 @router.post("/ingest-url", response_model=IngestResponse, status_code=201)
-async def ingest_web_url(payload: URLIngestRequest):
+async def ingest_web_url(payload: URLIngestRequest, current_user: dict = Depends(get_current_user)):
   db = get_database()
   now = datetime.now(timezone.utc)
+  user_id = current_user["user_id"]
   
   try:
     url_str = str(payload.url)
     
     chunks = await parse_url(url_str)
     
-    chunks_count = await add_documents_to_vectorstore(chunks, session_id=payload.session_id)
+    chunks_count = await add_documents_to_vectorstore(chunks, session_id=payload.session_id, user_id=user_id)
     
     await db.documents.insert_one({
+      "user_id": user_id,
       "session_id": payload.session_id,
       "name": url_str,
       "type": "url",
@@ -80,7 +85,7 @@ async def ingest_web_url(payload: URLIngestRequest):
     })
     
     await db.sessions.update_one(
-      {"session_id": payload.session_id},
+      {"session_id": payload.session_id, "user_id": user_id,},
       {"$set": {"updated_at": now}},
       upsert=True
     )
@@ -99,9 +104,10 @@ async def ingest_web_url(payload: URLIngestRequest):
     )
   
 @router.get("/{session_id}", status_code=200)
-async def get_session_documents(session_id: str):
+async def get_session_documents(session_id: str, current_user: dict = Depends(get_current_user)):
   db = get_database()
-  cursor = db.documents.find({"session_id": session_id}).sort("created_at", 1)
+  user_id = current_user["user_id"]
+  cursor = db.documents.find({"session_id": session_id, "user_id": user_id}).sort("created_at", 1)
   
   docs = []
   async for doc in cursor:

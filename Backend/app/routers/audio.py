@@ -1,8 +1,9 @@
 import logging
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel
 from groq import AsyncGroq
 from app.core.config import settings
+from app.core.security import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ class TranscribeResponse(BaseModel):
   text: str
   
 @router.post("/transcribe", response_model=TranscribeResponse, status_code=200)
-async def transcribe_voice(file: UploadFile = File(...)):
+async def transcribe_voice(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
   try:
     content = await file.read()
     if not content:
