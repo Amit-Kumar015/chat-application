@@ -16,6 +16,10 @@ class Settings(BaseSettings):
   GOOGLE_API_KEY: SecretStr
   GROQ_API_KEY: Optional[SecretStr] = None
   
+  JWT_SECRET_KEY: SecretStr
+  JWT_ALGORITHM: str = "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+  
   model_config = SettingsConfigDict(
     env_file=".env",
     env_file_encoding="utf-8",
