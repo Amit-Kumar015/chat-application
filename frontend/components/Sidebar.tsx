@@ -74,7 +74,7 @@ export default function Sidebar({
   };
 
   return (
-    <aside className="w-[220px] md:w-[260px] h-screen bg-[#0a0a0a] border-r border-[#333333] flex flex-col flex-shrink-0 z-30 select-none font-sans">
+    <aside className="fixed inset-y-0 left-0 z-50 w-full sm:w-[320px] md:relative md:z-30 md:w-[260px] h-screen bg-[#0a0a0a] border-r border-[#333333] flex flex-col flex-shrink-0 select-none font-sans">
       <div className="p-3.5 flex items-center justify-between gap-2">
         <span className="font-semibold text-xl text-[#ECECEC]">OpenChat</span>
         <button
@@ -224,7 +224,7 @@ export default function Sidebar({
           className="p-2 !text-red-600 hover:text-red-700 bg-[#262626] hover:bg-[#2c2c2c] rounded-lg transition cursor-pointer shrink-0"
           title="Log out"
         >
-          <Power size={16}/>
+          <Power size={16} />
         </button>
       </div>
     </aside>

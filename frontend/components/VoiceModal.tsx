@@ -161,7 +161,7 @@ export default function VoiceModal({
   if (!isOpen) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-between bg-[#171717] p-8 select-none">
+    <div className="absolute inset-0 z-[60] flex flex-col items-center justify-between bg-[#171717] p-4 sm:p-8 select-none">
       <div className="w-full flex justify-end">
         <button
           onClick={handleClose}
@@ -171,17 +171,17 @@ export default function VoiceModal({
         </button>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-8">
+      <div className="flex w-full flex-col items-center justify-center gap-6 sm:gap-8">
         <div className="relative flex items-center justify-center">
           <div
             className={`absolute rounded-full transition-all duration-700 ${
               voiceState === "listening"
-                ? "w-48 h-48 bg-[#10a37f]/20 animate-ping"
+                ? "w-36 h-36 sm:w-48 sm:h-48 bg-[#10a37f]/20 animate-ping"
                 : voiceState === "thinking"
-                  ? "w-48 h-48 bg-blue-500/20 animate-spin"
+                  ? "w-36 h-36 sm:w-48 sm:h-48 bg-blue-500/20 animate-spin"
                   : voiceState === "speaking"
-                    ? "w-56 h-56 bg-purple-500/20 animate-pulse"
-                    : "w-40 h-40 bg-zinc-800"
+                    ? "w-44 h-44 sm:w-56 sm:h-56 bg-purple-500/20 animate-pulse"
+                    : "w-32 h-32 sm:w-40 sm:h-40 bg-zinc-800"
             }`}
           />
 
@@ -196,10 +196,8 @@ export default function VoiceModal({
                     : "bg-[#2f2f2f]"
             }`}
           >
-            <div className="w-28 h-28 rounded-full bg-[#171717]/40 backdrop-blur-sm flex items-center justify-center text-white">
-              {voiceState === "listening" && (
-                <Mic size={32} />
-              )}
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#171717]/40 backdrop-blur-sm flex items-center justify-center text-white">
+              {voiceState === "listening" && <Mic size={32} />}
               {voiceState === "speaking" && (
                 <div className="w-8 h-8 rounded-full bg-white/80 animate-ping" />
               )}
@@ -219,7 +217,7 @@ export default function VoiceModal({
         {voiceState === "listening" ? (
           <button
             onClick={stopListening}
-            className="flex items-center gap-2 px-6 py-3 bg-[#2f2f2f] hover:bg-[#383838] border border-[#383838] text-white rounded-full text-xs font-medium transition cursor-pointer"
+            className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-[#2f2f2f] hover:bg-[#383838] border border-[#383838] text-white rounded-full text-xs font-medium transition cursor-pointer"
           >
             <Square size={14} className="fill-current text-red-400" />
             <span>Finished Speaking</span>
@@ -230,7 +228,7 @@ export default function VoiceModal({
               if (currentAudioRef.current) currentAudioRef.current.pause();
               startListening();
             }}
-            className="px-6 py-3 bg-[#2f2f2f] hover:bg-[#383838] border border-[#383838] text-white rounded-full text-xs font-medium transition cursor-pointer"
+            className="px-4 sm:px-6 py-3 bg-[#2f2f2f] hover:bg-[#383838] border border-[#383838] text-white rounded-full text-xs font-medium transition cursor-pointer"
           >
             Interrupt / Speak
           </button>

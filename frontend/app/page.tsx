@@ -346,8 +346,14 @@ export default function ChatPage() {
         currentSessionId={currentSessionId}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onSelectSession={switchSession}
-        onNewChat={handleNewChat}
+        onSelectSession={(sessionId) => {
+          switchSession(sessionId);
+          setSidebarOpen(false);
+        }}
+        onNewChat={() => {
+          handleNewChat();
+          setSidebarOpen(false);
+        }}
         onRenameSession={async (id, title) => {
           await api.renameSession(id, title);
           loadSessions();
@@ -358,9 +364,17 @@ export default function ChatPage() {
           loadSessions();
         }}
       />
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm md:hidden"
+        />
+      )}
 
       <main className="flex-1 flex flex-col h-full min-w-0 bg-[#0a0a0a] relative overflow-hidden">
-        <header className="h-12 flex items-center justify-between px-4 shrink-0">
+        <header className="h-12 flex items-center justify-between px-3 sm:px-4 shrink-0">
           <div className="flex items-center gap-2">
             {!sidebarOpen && (
               <button
@@ -373,14 +387,14 @@ export default function ChatPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 md:px-0 py-6">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-0 py-4 sm:py-6">
           <div className="max-w-3xl mx-auto space-y-6">
             {messages.length === 0  ? (
-              <div className="h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
+              <div className="h-[55vh] sm:h-[60vh] flex flex-col items-center justify-center text-center space-y-3 px-4">
                 <div className="w-13 h-13 rounded-full bg-[#2f2f2f] border border-[#333333] flex items-center justify-center text-[#ECECEC]">
                   <Bot size={24} />
                 </div>
-                <h2 className="text-3xl font-semibold text-[#ECECEC]">
+                <h2 className="text-2xl sm:text-3xl font-semibold text-[#ECECEC]">
                   What can I help with today?
                 </h2>
               </div>
@@ -416,7 +430,7 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <div className="max-w-3xl w-full mx-auto p-4 shrink-0">
+        <div className="max-w-3xl w-full mx-auto p-3 sm:p-4 shrink-0">
           {attachedFiles.length > 0 && (
             <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
               {attachedFiles.map((doc, i) => (
@@ -475,7 +489,7 @@ export default function ChatPage() {
               <div className="flex-1 flex items-center justify-between px-3">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-xs text-[#ECECEC] font-medium">
+                  <span className="text-xs text-[#ECECEC] font-medium truncate">
                     Recording voice...
                   </span>
                   <span className="text-xs text-[#8E8E8E] font-mono">
@@ -489,7 +503,7 @@ export default function ChatPage() {
                   className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 rounded-full text-xs transition cursor-pointer"
                 >
                   <Square size={12} className="fill-current" />
-                  <span>Stop & Transcribe</span>
+                    <span className="hidden sm:inline">Stop & Transcribe</span>
                 </button>
               </div>
             ) : (
@@ -509,7 +523,7 @@ export default function ChatPage() {
                     : "Message OpenChat..."
                 }
                 disabled={isTranscribing}
-                className="w-full bg-transparent text-sm text-[#ECECEC] placeholder-[#A0A0A0] focus:outline-none resize-none px-3 py-1.5 max-h-30"
+                className="w-full min-w-0 bg-transparent text-sm text-[#ECECEC] placeholder-[#A0A0A0] focus:outline-none resize-none px-2 sm:px-3 py-1.5 max-h-30"
               />
             )}
 
