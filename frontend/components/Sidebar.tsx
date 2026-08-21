@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Dispatch, SetStateAction, useState } from "react";
 import {
   Plus,
   MessageSquare,
@@ -9,10 +9,14 @@ import {
   PanelLeftClose,
   Check,
   X,
+  Power,
 } from "lucide-react";
-import { Session } from "@/lib/api";
+import { Session, User } from "@/lib/api";
 
 interface SidebarProps {
+  user: User | null;
+  setUser: Dispatch<SetStateAction<User | null>>;
+  setIsAuthenticated: Dispatch<SetStateAction<boolean>>;
   sessions: Session[];
   currentSessionId: string | null;
   isOpen: boolean;
@@ -24,6 +28,9 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
+  user,
+  setUser,
+  setIsAuthenticated,
   sessions,
   currentSessionId,
   isOpen,
@@ -33,6 +40,10 @@ export default function Sidebar({
   onRenameSession,
   onDeleteSession,
 }: SidebarProps) {
+  const userInitial = user?.username
+    ? user.username.charAt(0).toUpperCase()
+    : "U";
+  const displayName = user?.username || user?.email?.split("@")[0] || "User";
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
 
@@ -55,8 +66,15 @@ export default function Sidebar({
     setEditingId(null);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
   return (
-    <aside className="w-[260px] min-w-[260px] max-w-[260px] h-screen bg-[#0a0a0a] border-r border-[#333333] flex flex-col flex-shrink-0 z-30 select-none font-sans">
+    <aside className="w-[220px] md:w-[260px] h-screen bg-[#0a0a0a] border-r border-[#333333] flex flex-col flex-shrink-0 z-30 select-none font-sans">
       <div className="p-3.5 flex items-center justify-between gap-2">
         <span className="font-semibold text-xl text-[#ECECEC]">OpenChat</span>
         <button
@@ -189,17 +207,25 @@ export default function Sidebar({
       </div>
 
       <span className="h-px bg-[#333333] px-3"></span>
-      <div className="p-2">
-        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#212121] cursor-pointer transition">
+      <div className="flex items-center justify-between p-2">
+        <div className="flex items-center gap-2 px-2">
           <div className="w-8 h-8 rounded-full bg-[#10a37f] flex items-center justify-center font-bold text-xs text-white shrink-0">
-            AI
+            {userInitial}
           </div>
           <div className="flex flex-col overflow-hidden">
             <span className="text-xs font-medium text-[#ECECEC] truncate">
-              Workspace
+              {displayName}
             </span>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="p-2 !text-red-600 hover:text-red-700 bg-[#262626] hover:bg-[#2c2c2c] rounded-lg transition cursor-pointer shrink-0"
+          title="Log out"
+        >
+          <Power size={16}/>
+        </button>
       </div>
     </aside>
   );

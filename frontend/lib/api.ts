@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+import { customFetch } from "./apiClient";
 
 export interface Session {
   session_id: string;
@@ -20,27 +20,78 @@ export interface AttachedDocument {
   created_at: string;
 }
 
+export interface User{
+  user_id: string,
+  username: string, 
+  email: string, 
+  created_at: string
+}
+
+export interface AuthResponse{
+  access_token: string,
+  token_type: string;
+  user: User;
+}
+
 export const api = {
+  async login(email: string, password: string): Promise<AuthResponse>{
+    const res = await customFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({email, password})
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Failed to login");
+    }
+    return res.json()
+  },
+
+  async signup(username: string, email: string, password: string): Promise<AuthResponse>{
+    const res = await customFetch("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({username, email, password})
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Failed to signup");
+    }
+    return res.json()
+  },
+
+  async getMe(): Promise<User>{
+    const res = await customFetch("/auth/me", {
+      method: "GET"
+    })
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch user profile");
+    }
+
+    return res.json()
+  },
+
   async getSessions(): Promise<Session[]> {
-    const res = await fetch(`${API_BASE}/sessions`);
+    const res = await customFetch("/sessions");
     if (!res.ok) throw new Error("Failed to fetch sessions");
     return res.json();
   },
 
   async getSessionDocuments(sessionId: string): Promise<AttachedDocument[]> {
-    const res = await fetch(`${API_BASE}/documents/${sessionId}`);
+    const res = await customFetch(`/documents/${sessionId}`);
     if (!res.ok) return [];
     return res.json();
   },
 
   async createSession(): Promise<Session> {
-    const res = await fetch(`${API_BASE}/sessions`, { method: "POST" });
+    const res = await customFetch(`/sessions`, { method: "POST" });
     if (!res.ok) throw new Error("Failed to create session");
     return res.json();
   },
 
   async renameSession(sessionId: string, title: string): Promise<Session> {
-    const res = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+    const res = await customFetch(`/sessions/${sessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
@@ -50,13 +101,13 @@ export const api = {
   },
 
   async deleteSession(sessionId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/sessions/${sessionId}`, { method: "DELETE" });
+    const res = await customFetch(`/sessions/${sessionId}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Failed to delete session");
   },
 
   async getMessages(sessionId: string): Promise<Message[]> {
-    const res = await fetch(`${API_BASE}/sessions/${sessionId}/messages`);
-    if (!res.ok) throw new Error("Failed to fetch messages");
+    const res = await customFetch(`/sessions/${sessionId}/messages`);
+    if (!res.ok) throw new Error("Failed to customFetch messages");
     const data = await res.json();
     return data.messages;
   },
@@ -66,7 +117,7 @@ export const api = {
     formData.append("session_id", sessionId);
     formData.append("file", file);
 
-    const res = await fetch(`${API_BASE}/documents/upload`, {
+    const res = await customFetch(`/documents/upload`, {
       method: "POST",
       body: formData,
     });
@@ -75,7 +126,7 @@ export const api = {
   },
 
   async ingestUrl(sessionId: string, url: string): Promise<{ chunks_count: number }> {
-    const res = await fetch(`${API_BASE}/documents/ingest-url`, {
+    const res = await customFetch(`/documents/ingest-url`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: sessionId, url }),
@@ -92,7 +143,7 @@ export const api = {
     onError: (err: string) => void
   ) {
     try {
-      const response = await fetch(`${API_BASE}/chat`, {
+      const response = await customFetch(`/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, message }),
@@ -141,7 +192,7 @@ export const api = {
     const formData = new FormData()
     formData.append("file", audioBlob, "voice_input.webm")
 
-    const res = await fetch(`${API_BASE}/audio/transcribe`, {
+    const res = await customFetch(`/audio/transcribe`, {
       method: "POST",
       body: formData
     })
@@ -163,7 +214,7 @@ export const api = {
     formData.append("session_id", session_id)
     formData.append("file", audioBlob, "voice_turn.webm")
 
-    const res = await fetch(`${API_BASE}/voice/chat`, {
+    const res = await customFetch(`/voice/chat`, {
       method: "POST",
       body: formData
     })

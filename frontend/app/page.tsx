@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
   ArrowUp,
@@ -18,11 +18,15 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Sidebar from "@/components/Sidebar";
-import { api, Session, Message, AttachedDocument } from "@/lib/api";
+import { api, Session, Message, AttachedDocument, User } from "@/lib/api";
 import AttachMenu from "@/components/AttachMenu";
 import VoiceModal from "@/components/VoiceModal";
+import Auth from "@/components/Auth";
 
 export default function ChatPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,13 +48,66 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const loadSessions = useCallback(async () => {
+    try {
+      const data = await api.getSessions();
+      setSessions(data);
+      // if(!currentSessionId) handleNewChat()
+    } catch (e) {
+      console.error(e);
+    }
+  }, [])
+
+  useEffect(() => {
+    const verifyTokenAndLoad = async () => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+      if (!token) {
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const userData = await api.getMe();
+        localStorage.setItem("user", JSON.stringify(userData));
+        setUser(userData);
+        setIsAuthenticated(true);
+        await loadSessions();
+        setCurrentSessionId((prev) => prev || `session_${uuidv4().substring(0, 8)}`)
+      } catch (err) {
+        console.error("Token invalid or expired:", err);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    verifyTokenAndLoad();
+  }, [loadSessions]); 
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
+  const handleAuthSuccess = async () => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      } else {
+        const userData = await api.getMe();
+        setUser(userData);
+      }
+      setIsAuthenticated(true);
+      await loadSessions();
+    } catch (err) {
+      console.error("Error setting up session post-auth:", err);
+    }
+  };
 
   const handleSelectFile = () => {
     fileInputRef.current?.click();
@@ -111,16 +168,6 @@ export default function ChatPage() {
     }
   };
 
-  const loadSessions = async () => {
-    try {
-      const data = await api.getSessions();
-      setSessions(data);
-      if(!currentSessionId) handleNewChat()
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const switchSession = async (sessionId: string) => {
     setCurrentSessionId(sessionId);
     if(isVoiceModalOpen) setIsVoiceModalOpen(false)
@@ -156,6 +203,8 @@ export default function ChatPage() {
       currentSessionId || `session_${uuidv4().substring(0, 8)}`;
     if (!currentSessionId) setCurrentSessionId(activeSessionId);
 
+    const isFirstMessage = messages.length === 0;
+
     const updatedMessages: Message[] = [
       ...messages,
       { role: "user", content: userPrompt },
@@ -181,9 +230,11 @@ export default function ChatPage() {
           return next;
         });
       },
-      () => {
+      async () => {
         setIsStreaming(false);
-        loadSessions();
+        if(isFirstMessage){
+          await loadSessions();
+        }
       },
       (error) => {
         setIsStreaming(false);
@@ -270,9 +321,27 @@ export default function ChatPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen bg-[#171717] flex flex-col items-center justify-center gap-3 select-none">
+        <Loader2 size={24} className="animate-spin text-[#10a37f]" />
+        <span className="text-xs text-[#8E8E8E] font-medium tracking-wide">
+          Verifying session...
+        </span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Auth onAuthSuccess={handleAuthSuccess} />;
+  }
+
   return (
     <div className="flex w-screen h-screen bg-[#212121] text-[#ECECEC] overflow-hidden font-sans">
       <Sidebar
+        user={user}
+        setUser={setUser}
+        setIsAuthenticated={setIsAuthenticated}
         sessions={sessions}
         currentSessionId={currentSessionId}
         isOpen={sidebarOpen}
@@ -296,7 +365,7 @@ export default function ChatPage() {
             {!sidebarOpen && (
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-1.5 rounded-lg text-[#A0A0A0] hover:text-[#ECECEC] hover:bg-[#2a2a2a] transition"
+                className="p-1.5 rounded-lg text-[#A0A0A0] hover:text-[#ECECEC] hover:bg-[#2a2a2a] transition cursor-pointer"
               >
                 <PanelLeft size={18} />
               </button>
