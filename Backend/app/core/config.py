@@ -4,7 +4,7 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-  PROJECT_NAME: str = "ChatGPT Clone RAG API"
+  PROJECT_NAME: str = "OpenChat API"
   ENVIRONMENT: str = "development"
   DEBUG: bool = True
   

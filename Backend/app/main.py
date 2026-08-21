@@ -21,6 +21,10 @@ async def lifespan(app: FastAPI):
   logger.info("Shutting down application...")
   await close_mongo_connection()
   
+origins = [
+  "http://localhost:3000",
+]
+  
 app = FastAPI(
   title=settings.PROJECT_NAME,
   debug=settings.DEBUG,
@@ -29,7 +33,7 @@ app = FastAPI(
 
 app.add_middleware(
   CORSMiddleware,
-  allow_origins=["*"], 
+  allow_origins=origins, 
   allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"],
