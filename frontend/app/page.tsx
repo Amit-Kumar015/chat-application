@@ -56,11 +56,12 @@ export default function ChatPage() {
     } catch (e) {
       console.error(e);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     const verifyTokenAndLoad = async () => {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
       if (!token) {
         setIsAuthenticated(false);
@@ -74,7 +75,9 @@ export default function ChatPage() {
         setUser(userData);
         setIsAuthenticated(true);
         await loadSessions();
-        setCurrentSessionId((prev) => prev || `session_${uuidv4().substring(0, 8)}`)
+        setCurrentSessionId(
+          (prev) => prev || `session_${uuidv4().substring(0, 8)}`,
+        );
       } catch (err) {
         console.error("Token invalid or expired:", err);
         localStorage.removeItem("token");
@@ -87,7 +90,7 @@ export default function ChatPage() {
     };
 
     verifyTokenAndLoad();
-  }, [loadSessions]); 
+  }, [loadSessions]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -111,6 +114,12 @@ export default function ChatPage() {
 
   const handleSelectFile = () => {
     fileInputRef.current?.click();
+  };
+
+  const closeSidebarOnMobile = () => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setSidebarOpen(false);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,7 +179,7 @@ export default function ChatPage() {
 
   const switchSession = async (sessionId: string) => {
     setCurrentSessionId(sessionId);
-    if(isVoiceModalOpen) setIsVoiceModalOpen(false)
+    if (isVoiceModalOpen) setIsVoiceModalOpen(false);
     try {
       const [history, docs] = await Promise.all([
         api.getMessages(sessionId),
@@ -232,7 +241,7 @@ export default function ChatPage() {
       },
       async () => {
         setIsStreaming(false);
-        if(isFirstMessage){
+        if (isFirstMessage) {
           await loadSessions();
         }
       },
@@ -348,11 +357,11 @@ export default function ChatPage() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         onSelectSession={(sessionId) => {
           switchSession(sessionId);
-          setSidebarOpen(false);
+          closeSidebarOnMobile();
         }}
         onNewChat={() => {
           handleNewChat();
-          setSidebarOpen(false);
+          closeSidebarOnMobile();
         }}
         onRenameSession={async (id, title) => {
           await api.renameSession(id, title);
@@ -373,23 +382,21 @@ export default function ChatPage() {
         />
       )}
 
-      <main className="flex-1 flex flex-col h-full min-w-0 bg-[#0a0a0a] relative overflow-hidden">
-        <header className="h-12 flex items-center justify-between px-3 sm:px-4 shrink-0">
-          <div className="flex items-center gap-2">
-            {!sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-1.5 rounded-lg text-[#A0A0A0] hover:text-[#ECECEC] hover:bg-[#2a2a2a] transition cursor-pointer"
-              >
-                <PanelLeft size={18} />
-              </button>
-            )}
-          </div>
+      <main className="flex-1 flex flex-col h-full min-w-0 px-9 bg-[#0a0a0a] relative overflow-hidden">
+        <header className="h-12 flex items-center justify-between shrink-0">
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="absolute left-4 p-1.5 rounded-lg text-[#A0A0A0] hover:text-[#ECECEC] hover:bg-[#2a2a2a] transition cursor-pointer"
+            >
+              <PanelLeft size={18} />
+            </button>
+          )}
         </header>
 
         <div className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-0 py-4 sm:py-6">
           <div className="max-w-3xl mx-auto space-y-6">
-            {messages.length === 0  ? (
+            {messages.length === 0 ? (
               <div className="h-[55vh] sm:h-[60vh] flex flex-col items-center justify-center text-center space-y-3 px-4">
                 <div className="w-13 h-13 rounded-full bg-[#2f2f2f] border border-[#333333] flex items-center justify-center text-[#ECECEC]">
                   <Bot size={24} />
@@ -413,7 +420,7 @@ export default function ChatPage() {
                   )}
 
                   <div
-                    className={`text-sm leading-relaxed max-w-[80%] ${
+                    className={`text-xs sm:text-sm leading-relaxed max-w-[80%] ${
                       m.role === "user"
                         ? "bg-[#2f2f2f] text-[#ECECEC] px-4 py-2.5 rounded-2xl rounded-tr-sm border border-[#333333]"
                         : "text-[#ECECEC] prose prose-invert max-w-none pt-1"
@@ -503,7 +510,7 @@ export default function ChatPage() {
                   className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 rounded-full text-xs transition cursor-pointer"
                 >
                   <Square size={12} className="fill-current" />
-                    <span className="hidden sm:inline">Stop & Transcribe</span>
+                  <span className="hidden sm:inline">Stop & Transcribe</span>
                 </button>
               </div>
             ) : (
