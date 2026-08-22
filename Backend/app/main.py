@@ -23,6 +23,7 @@ async def lifespan(app: FastAPI):
   
 origins = [
   "http://localhost:3000",
+  "https://openchat-application.vercel.app"
 ]
   
 app = FastAPI(
